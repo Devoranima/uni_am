@@ -1,116 +1,102 @@
 import numpy as np
-from scipy.sparse import csr_matrix
-from scipy.sparse.linalg import spsolve
-
+import matplotlib.pyplot as plt
+from utils import findErrorConstant, createInterpolationGrid, selectRandomPoints
 
 FUNCTION = np.sin
 
-def cubicSpline(x, y, xNew):
+#TODO: add tangent
+
+def cubicSpline(x, y, xNew=None):
+    """
+    Собственная реализация кубического сплайна.
+    Возвращает коэффициенты и, если указаны xNew, вычисляет значения сплайна в этих точках.
+    """
     n = len(x)
-    a = y.copy()
     h = np.diff(x)
     
-    ARowIndices = []
-    AColIndices = []
-    AValues = []
-    rhs = np.zeros(n)
+    # Создаем матрицу A и вектор B
+    A = np.zeros((n, n))
+    B = np.zeros(n)
     
-    # Граничные условия
-    ARowIndices.append(0)
-    AColIndices.append(0)
-    AValues.append(1.0)
-    
+    # Заполняем матрицу A и вектор B
     for i in range(1, n - 1):
-        ARowIndices.append(i)
-        AColIndices.append(i - 1)
-        AValues.append(h[i - 1])
-        
-        ARowIndices.append(i)
-        AColIndices.append(i)
-        AValues.append(2 * (h[i - 1] + h[i]))
-        
-        ARowIndices.append(i)
-        AColIndices.append(i + 1)
-        AValues.append(h[i])
+        A[i, i - 1] = h[i - 1]
+        A[i, i] = 2 * (h[i - 1] + h[i])
+        A[i, i + 1] = h[i]
+        B[i] = 3 * ((y[i + 1] - y[i]) / h[i] - (y[i] - y[i - 1]) / h[i - 1])
     
-    ARowIndices.append(n - 1)
-    AColIndices.append(n - 1)
-    AValues.append(1.0)
+    # Граничные условия (естественный сплайн)
+    A[0, 0] = 1
+    A[-1, -1] = 1
     
-    rhs[1:n-1] = 3 * ((a[2:n] - a[1:n-1]) / h[1:n-1] - (a[1:n-1] - a[0:n-2]) / h[0:n-2])
- 
-    A = csr_matrix((AValues, (ARowIndices, AColIndices)), shape=(n, n))
+    # Решаем систему для нахождения коэффициентов c
+    c = np.linalg.solve(A, B)
     
-    c = spsolve(A, rhs)
-    b = (a[1:n] - a[0:n-1]) / h - h * (2 * c[0:n-1] + c[1:n]) / 3
-    d = (c[1:n] - c[0:n-1]) / (3 * h)
-    yNew = np.zeros_like(xNew)
+    # Вычисляем коэффициенты a, b, d
+    a = y[:-1]
+    b = np.diff(y) / h - h * (2 * c[:-1] + c[1:]) / 3
+    d = (c[1:] - c[:-1]) / (3 * h)
     
-
-    for j, xNew_i in enumerate(xNew):
-        idx = np.searchsorted(x, xNew_i) - 1
-        idx = np.clip(idx, 0, n - 2)
-        dx = xNew_i - x[idx]
-        yNew[j] = a[idx] + b[idx] * dx + c[idx] * dx**2 + d[idx] * dx**3
+    # Если xNew не указаны, возвращаем только коэффициенты
+    if xNew is None:
+        return a, b, c[:-1], d
     
+    # Иначе вычисляем значения сплайна в точках xNew
+    idx = np.searchsorted(x, xNew) - 1
+    idx = np.clip(idx, 0, len(x) - 2)
+    dx = xNew - x[idx]
+    yNew = a[idx] + b[idx] * dx + c[idx] * dx**2 + d[idx] * dx**3
     return yNew
 
-def findErrorConstant(yGiven, y, x):
-    maxErr = np.max((abs(yGiven-y)))
-    h = max(np.diff(x))
-    return maxErr/h**2
 
-def tangentMethod(yNew, x, y, maxIterations=100, tolerance=1e-6):
-    xFound = np.zeros_like(yNew)
-    
-    n = len(x)
-    h = np.diff(x)
-    a = y.copy()
-    b = (a[1:n] - a[0:n-1]) / h
-    c = np.zeros(n)
-    
-    for i in range(1, n - 1):
-        c[i] = (b[i] - b[i - 1]) / h[i - 1]
-        
-    for j, yTarget in enumerate(yNew):
-        idx = np.searchsorted(a, yTarget) - 1
-        idx = np.clip(idx, 0, n - 2)
-        
-        xCurrent = x[idx] + (yTarget - a[idx]) / b[idx]
-        
-        for _ in range(maxIterations):
-            fValue = cubicSpline(x, y, np.array([xCurrent]))[0] - yTarget
-            fDerivative = b[idx] + c[idx] * (xCurrent - x[idx])
+def main_0():
+    a = 0
+    b = 1
+    h = 0.1
 
-            xNew = xCurrent - fValue / fDerivative
-            
-            if abs(xNew - xCurrent) < tolerance:
-                break
-            
-            xCurrent = xNew
-        
-        xFound[j] = xCurrent
-    
-    return xFound
+    # Выбираем случайные точки для проверки
+    xNew = selectRandomPoints(a, b, num_points=5)
+    yNewTrue = FUNCTION(xNew)
+
+    # Подбор шага сетки
+    hValues = []
+    errorConstants = []
+    while h >= 1e-3:
+        xBase = createInterpolationGrid(a, b, h)
+        yBase = FUNCTION(xBase)
+        yNewPred = cubicSpline(xBase, yBase, xNew)
+
+        errorConstant = findErrorConstant(yNewTrue, yNewPred, xBase, 4) # Для кубического сплайна ошибка ~ O(h^4)
+        hValues.append(h)
+        errorConstants.append(errorConstant)
+        h /= 2
+
+    # График зависимости ошибки от шага сетки
+    plt.plot(hValues, errorConstants, marker='o')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.title('Зависимость ошибки от шага сетки')
+    plt.xlabel('Шаг сетки (h)')
+    plt.ylabel('Константа ошибки')
+    plt.grid()
+    plt.show()
+
+def main():
+    a = 0
+    b = 1
+    h = 0.1
+    #xNew = selectRandomPoints(a, b, num_points=5)
+    xNew = np.array([0.37454012, 0.59865848, 0.73199394, 0.95071431])
+    yNewTrue = FUNCTION(xNew)
+    np.set_printoptions(precision=20, suppress=True)
+    while h >= 1e-3:
+        xBase = createInterpolationGrid(a, b, h)
+        yBase = FUNCTION(xBase)
+        yNewPred = cubicSpline(xBase, yBase, xNew)
+        errorConstant = findErrorConstant(yNewTrue, yNewPred, h, 4) # Для кубического сплайна ошибка ~ O(h^4)
+        print("step: {:10f} | error constant: {:20f}".format(h, errorConstant))
+        h /= 2
 
 
 if __name__ == "__main__":
-    a = 0
-    b = 1
-
-    xNew = [0.1257438, 0.3264987, 0.4679823, 0.8593421]
-    yNew = FUNCTION(xNew)
-
-    np.set_printoptions(precision=20, suppress=True)
-    hset=[0.02]
-    for h in hset:
-        xBase = np.arange(a, b+h, h)
-        yBase = FUNCTION(xBase)
-        y = cubicSpline(xBase, yBase, xNew)
-        c = findErrorConstant(yNew, y, xBase)
-        print(f"Error constant: {c}")
-
-    x = tangentMethod(yNew, xBase, yBase)
-    print(f"Interpolated values: {y}")
-    print(f"Exact values: {yNew}")
-    print(f"Inverse interpolated x: {x}")
+    main()

@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+from utils import findErrorConstant
 
 FUNCTION = np.sin
 
@@ -14,11 +14,6 @@ def linearInterpolation(x, y, xNew):
         (xNew - x[indices - 1]) / (x[indices] - x[indices - 1])
     return yNew
 
-
-def findErrorConstant(yGiven, y, x):
-    maxErr = np.max((abs(yGiven-y)))
-    h = max(np.diff(x))
-    return maxErr/h**2
 
 
 if __name__ == "__main__":
@@ -37,7 +32,7 @@ if __name__ == "__main__":
         yBase = FUNCTION(xBase)
         y = linearInterpolation(xBase, yBase, xNew)
         x = linearInterpolation(yBase, xBase, yNew)
-        c = findErrorConstant(yNew, y, x)
+        c = findErrorConstant(yNew, y, h)
         print(c)
         h /= 10
 
