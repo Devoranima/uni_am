@@ -4,7 +4,6 @@ from utils import findErrorConstant, createInterpolationGrid, selectRandomPoints
 
 FUNCTION = np.sin
 
-#TODO: add tangent
 
 def cubicSpline(x, y, xNew=None):
     """
@@ -47,6 +46,40 @@ def cubicSpline(x, y, xNew=None):
     dx = xNew - x[idx]
     yNew = a[idx] + b[idx] * dx + c[idx] * dx**2 + d[idx] * dx**3
     return yNew
+
+def tangent(x, y, yNew, max_iter=100, tol=1e-6):
+    x_found = np.zeros_like(yNew)
+    
+    n = len(x)
+    h = np.diff(x)
+    a = y.copy()
+    b = (a[1:n] - a[0:n-1]) / h
+    c = np.zeros(n)
+    
+    for i in range(1, n - 1):
+        c[i] = (b[i] - b[i - 1]) / h[i - 1]
+    for j, y_target in enumerate(yNew):
+       
+        idx = np.searchsorted(a, y_target) - 1
+        idx = np.clip(idx, 0, n - 2)
+        
+        x_current = x[idx] + (y_target - a[idx]) / b[idx]
+        
+        for _ in range(max_iter):
+            f_value = cubicSpline(x, y, np.array([x_current]))[0] - y_target
+            f_derivative = b[idx] + c[idx] * (x_current - x[idx])
+
+            x_new = x_current - f_value / f_derivative
+            
+            if abs(x_new - x_current) < tol:
+                break
+            
+            x_current = x_new
+        
+        x_found[j] = x_current
+    
+    return x_found
+
 
 
 def main_0():
@@ -96,7 +129,10 @@ def main():
         errorConstant = findErrorConstant(yNewTrue, yNewPred, h, 4) # Для кубического сплайна ошибка ~ O(h^4)
         print("step: {:10f} | error constant: {:20f}".format(h, errorConstant))
         h /= 2
-
+        
+    xReverse = tangent(xBase, yBase, yNewTrue)
+    print(xNew)
+    print(xReverse)
 
 if __name__ == "__main__":
     main()

@@ -82,12 +82,12 @@ if __name__ == "__main__":
 
 
     plt.figure(figsize=(10, 6))
-    plt.scatter(x, f, label="Исходные точки", color="red")
-    plt.plot(xDense, fApprox, label="Аппроксимированная функция", color="blue")
-    plt.vlines(z, min(f) - 1, max(f) + 1, colors="gray", linestyles="dashed", label="Границы сегментов")
+    plt.scatter(x, f, label="Input points", color="blue")
+    plt.plot(xDense, fApprox, label="Aproximated function", color="green")
+    plt.vlines(z, min(f) - 1, max(f) + 1, colors="black", linestyles="dashed", label="", alpha=.1)
     plt.legend()
     plt.xlabel("x")
     plt.ylabel("f(x)")
-    plt.title("Метод наименьших квадратов с сегментированным базисом")
+    plt.title("Least Squares method")
     plt.grid()
     plt.show()
