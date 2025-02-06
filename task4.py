@@ -1,6 +1,8 @@
 import math as m
 import pandas as pd
 
+#! сделать тест на сходимость
+
 def simpsonIntegration(func, a, b, tol=1e-4):
     """
     Численное интегрирование методом Симпсона.
@@ -137,6 +139,44 @@ def f4(phi):
     """
     return m.sin(phi) * m.sqrt(1 + 16 * (m.sin(phi)**18)) / m.sqrt(1 + (m.sin(phi)**2) + (m.sin(phi)**4) + (m.sin(phi)**6))
 
+def test_convergence(integration_method, func, a, b):
+    """
+    Проверка сходимости метода интегрирования.
+    """
+    iterations = []
+    tols = [1e-2, 1e-3, 1e-4, 1e-5]
+    for tol in tols:
+        integral = integration_method(func, a, b, tol)
+        iterations.append((tol, integral))
+    
+    return iterations
+
+def testMethodsForConvergence():
+    a = 0
+    b = m.pi / 2
+    
+    quadratureMethods = [
+        ("Central Rectangle", centralRectangleIntegration),
+        ("Trapezoidal", trapezoidalIntegration),
+        ("Simpson", simpsonIntegration),
+        ("Gauss", gaussIntegration)
+    ]
+    
+    researchFunctions = {
+        'x^2': f2,
+        'x^3': f3,
+        'x^4': f4
+    }
+    
+    for func_name, func in researchFunctions.items():
+        print(f"Testing convergence for function {func_name}")
+        for method_name, method in quadratureMethods:
+            iterations = test_convergence(method, func, a, b)
+            print(f"Method: {method_name}")
+            for n, value in iterations:
+                print(f"  tolerance = {n}, Integral = {value}")
+            print()
+
 if __name__ == "__main__":
     # Параметры
     a = 0
@@ -171,3 +211,5 @@ if __name__ == "__main__":
     # Создание DataFrame для отображения результатов
     resultsDf = pd.DataFrame(results, columns=['Function'] + quadratureNames)
     print(resultsDf)
+    
+    testMethodsForConvergence()

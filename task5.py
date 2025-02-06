@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+#! неправильно
 
 def FUNCTION(x, a=1, eps=0.1):
     return a * np.arctan(x / eps)
